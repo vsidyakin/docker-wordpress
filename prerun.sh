@@ -17,7 +17,7 @@ else
 fi
 
 # Prepare basic auth
-htpasswd -b -c /etc/nginx/htpasswd "${NGINX_BASIC_AUTH_LOGIN}" "${NGINX_BASIC_AUTH_PASSWORD}"
+#htpasswd -b -c /etc/nginx/htpasswd "${NGINX_BASIC_AUTH_LOGIN}" "${NGINX_BASIC_AUTH_PASSWORD}"
 # configure Nginx
 dockerize -template "${TEMPLATES_DIR}/nginx.conf.tmpl"      > "/etc/nginx/nginx.conf"
 dockerize -template "${TEMPLATES_DIR}/ssl.conf.tmpl"        > "/etc/nginx/snippets/ssl.conf"

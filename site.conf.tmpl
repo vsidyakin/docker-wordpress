@@ -1,0 +1,85 @@
+fastcgi_cache_path /var/cache/nginx/wp levels=1:2 keys_zone=wpcache:5m max_size=100m;
+
+upstream php_fastcgi {
+    server unix:///run/php/php{{ .Env.PHP_VERSION }}-fpm.sock;
+}
+
+{{ if isTrue (default .Env.NGINX_HTTPS "false") }}
+server {
+    listen *:80;
+
+    {{ if isTrue (default .Env.WP_SUBDOMAINS "false") }}
+    server_name {{ .Env.NGINX_DOMAIN_NAME }} {{ .Env.NGINX_CANONICAL_DOMAIN_NAME }}, {{ .Env.WP_SUBDOMAINS }};
+    {{ else }}
+    server_name {{ .Env.NGINX_DOMAIN_NAME }} {{ .Env.NGINX_CANONICAL_DOMAIN_NAME }};
+    {{ end }}
+
+
+    {{ if isTrue (default .Env.NGINX_REDIRECT_TO_CANONICAL_DOMAIN "false") }}
+      {{ if isTrue (default .Env.NGINX_HTTPS_REDIRECT "true") }}
+      rewrite (.*) https://{{ .Env.NGINX_CANONICAL_DOMAIN_NAME }}$1 permanent;
+      {{ else }}
+      rewrite (.*) https://{{ .Env.NGINX_DOMAIN_NAME }}$1 permanent;
+      {{ end }}
+    {{ else }}
+      {{ if isTrue (default .Env.NGINX_HTTPS_REDIRECT "true") }}
+      rewrite (.*) https://{{ .Env.NGINX_DOMAIN_NAME }}$1 permanent;
+      {{ else }}
+
+      include /etc/nginx/conf.redirects/{{ .Env.NGINX_DOMAIN_NAME }}*.conf;
+      include /etc/nginx/snippets/wordpress.conf;
+      {{ end }}
+    {{ end }}
+}
+{{ end }}
+
+    {{ if isTrue (default .Env.WP_CONFIG_MULTI "false") }}
+    map $uri $blogname{
+        ~^(?P<blogpath>/[^/]+/)files/(.*)       $blogpath ;
+    }
+
+    map $blogname $blogid{
+        default -999;
+    }
+    {{ end }}
+
+    server {
+    {{ if isTrue (default .Env.WP_SUBDOMAINS "false") }}
+        server_name {{ .Env.NGINX_DOMAIN_NAME }} {{ .Env.NGINX_CANONICAL_DOMAIN_NAME }}, {{ .Env.WP_SUBDOMAINS }};
+    {{ else }}
+        server_name {{ .Env.NGINX_DOMAIN_NAME }} {{ .Env.NGINX_CANONICAL_DOMAIN_NAME }};
+    {{ end }}
+
+    {{ if isTrue (default .Env.NGINX_BASIC_AUTH "false") }}
+    auth_basic           "{{ default .Env.NGINX_BASIC_AUTH_PROMPT "Authentication required" }}";
+    auth_basic_user_file /etc/nginx/htpasswd;
+    {{ end }}
+
+    {{ if isTrue (default .Env.NGINX_HTTPS "false") }}
+    listen *:443 ssl http2;
+    include /etc/nginx/snippets/ssl.conf;
+
+      {{ if isTrue (default .Env.NGINX_REDIRECT_TO_CANONICAL_DOMAIN "false") }}
+      if ( $host = {{ .Env.NGINX_DOMAIN_NAME }} ) {
+          rewrite (.*) https://{{ .Env.NGINX_CANONICAL_DOMAIN_NAME }}$1 permanent;
+      }
+      {{ end }}
+
+    {{ else }}
+    listen *:80;
+
+      {{ if isTrue (default .Env.NGINX_REDIRECT_TO_CANONICAL_DOMAIN "false") }}
+      if ( $host = {{ .Env.NGINX_DOMAIN_NAME }} ) {
+        {{ if isTrue (default .Env.NGINX_HTTPS_REDIRECT "true") }}
+        rewrite (.*) https://{{ .Env.NGINX_CANONICAL_DOMAIN_NAME }}$1 permanent;
+        {{ else }}
+        rewrite (.*) http://{{ .Env.NGINX_CANONICAL_DOMAIN_NAME }}$1 permanent;
+        {{ end }}
+      }
+      {{ end }}
+
+    {{ end }}
+
+    include /etc/nginx/conf.redirects/{{ .Env.NGINX_DOMAIN_NAME }}*.conf;
+    include /etc/nginx/snippets/wordpress.conf;
+}

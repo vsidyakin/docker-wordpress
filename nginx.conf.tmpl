@@ -1,0 +1,49 @@
+user             www-data;
+pid              /var/run/nginx.pid;
+worker_processes {{ default .Env.NGINX_WORKER_PROCESSES "auto" }};
+error_log        stderr {{ default .Env.NGINX_ERROR_LOG_LEVEL "warn" }};
+
+events {
+    worker_connections {{ default .Env.NGINX_WORKER_CONNECTIONS "1024" }};
+}
+
+http {
+    include      /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    server_tokens off;
+
+    log_format   main        '$remote_addr - $remote_user [$time_local] "$request" '
+                             '$status $body_bytes_sent "$http_referer" '
+                             '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log   /dev/stdout main;
+
+    sendfile             {{ default .Env.NGINX_SENDFILE "on" }};
+    tcp_nopush           {{ default .Env.NGINX_TCP_NOPUSH "off" }};
+    gzip                 {{ default .Env.NGINX_GZIP "on" }};
+    gzip_proxied         {{ default .Env.NGINX_GZIP_PROXIED "any" }};
+    gzip_types           {{ default .Env.NGINX_GZIP_TYPES "text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml" }};
+    gzip_buffers         {{ default .Env.NGINX_GZIP_BUFFERS "16 8k" }};
+
+    fastcgi_buffers      {{ default .Env.NGINX_FASTCGI_BUFFERS "16 8k" }};
+    fastcgi_buffer_size  {{ default .Env.NGINX_FASTCGI_BUFFER_SIZE "16k" }};
+
+    keepalive_timeout    {{ default .Env.NGINX_KEEPALIVE_TIMEOUT "65" }};
+
+    client_max_body_size {{ default .Env.NGINX_CLIENT_MAX_BODY_SIZE "20m" }};
+
+
+    real_ip_recursive    on;
+
+    set_real_ip_from     172.0.0.0/8;
+
+    {{ if isTrue (default .Env.NGINX_CLOUDFLARE_PROXY "false") }}
+    real_ip_header       CF-Connecting-IP;
+    include              /etc/nginx/snippets/cloudflare.conf;
+    {{ else }}
+    real_ip_header       X-Forwarded-For;
+    {{ end }}
+
+    include              /etc/nginx/conf.d/*.conf;
+}

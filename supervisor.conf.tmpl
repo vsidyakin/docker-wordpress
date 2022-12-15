@@ -1,0 +1,38 @@
+[supervisord]
+nodaemon=true
+loglevel={{ default .Env.SUPERVISOR_DEBUG_LEVEL "info" }}
+
+{{ if isTrue (default .Env.CRON_ENABLED "false") }}
+[program:cron]
+command=cron -f
+autostart=true
+autorestart=true
+priority=100
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+{{ end }}
+
+[program:nginx]
+command=nginx -g "daemon off;"
+directory=/var/www
+autostart=true
+autorestart=true
+priority=100
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
+[program:php-fpm]
+command=php-fpm -F -O
+directory=/var/www
+autostart=true
+autorestart=true
+priority=200
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+
